@@ -1,0 +1,50 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.utils import to_categorical
+
+# Carregar o dataset
+data = pd.read_csv('dataset/hand_movements.csv')
+
+# Transformar os dados em formato adequado (sequências)
+labels = data['label'].unique()  # Classes de letras
+label_map = {label: idx for idx, label in enumerate(labels)}
+
+# Prepara as sequências de entrada e os rótulos correspondentes
+X = []
+y = []
+sequence_length = 10  # O número de frames por sequência
+
+for label in labels:
+    subset = data[data['label'] == label]
+    for i in range(0, len(subset) - sequence_length + 1, sequence_length):
+        X.append(subset.iloc[i:i+sequence_length, 2:].values)  # Landmarks
+        y.append(label_map[label])
+
+X = np.array(X)
+y = np.array(y)
+
+# One-hot encoding dos rótulos
+y = to_categorical(y, num_classes=len(labels))
+
+# Dividir os dados em treino e teste
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Criar o modelo LSTM
+model = Sequential()
+model.add(LSTM(64, return_sequences=True, input_shape=(sequence_length, 63)))  # 63 features por frame
+model.add(LSTM(64))
+model.add(Dropout(0.5))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(len(labels), activation='softmax'))
+
+# Compilar o modelo
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Treinar o modelo
+model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y_test))
+
+# Salvar o modelo treinado
+model.save('models/movement_model.h5')
