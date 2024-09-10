@@ -1,0 +1,1 @@
+# Detector_de_Libras_com_MediaPipe
